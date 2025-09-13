@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Broadcast Telegram</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --primary: #0088cc;
+      --primary-dark: #006ba1;
+      --bg: #f4f7fa;
+      --card: #ffffff;
+      --text: #222;
+      --radius: 8px;
+      --danger: #e53935;
+      --success: #43a047;
+    }
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, Segoe UI, Roboto, sans-serif;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+    }
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      width: 100%;
+      max-width: 520px;
+      padding: 2rem 2.5rem;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 1.4rem;
+    }
+    label {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    textarea {
+      width: 100%;
+      min-height: 120px;
+      resize: vertical;
+      padding: 0.75rem;
+      border: 1px solid #c4c4c4;
+      border-radius: var(--radius);
+      font-size: 1rem;
+    }
+    button {
+      margin-top: 1rem;
+      width: 100%;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 0.75rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    button:hover {
+      background: var(--primary-dark);
+    }
+    button:disabled {
+      background: #90a4ae;
+      cursor: not-allowed;
+    }
+    .info {
+      margin-top: 0.75rem;
+      font-size: 0.875rem;
+      color: #555;
+    }
+    .alert {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius);
+      display: none;
+    }
+    .alert.success {
+      background: #e8f5e9;
+      color: var(--success);
+      border: 1px solid var(--success);
+    }
+    .alert.error {
+      background: #ffebee;
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    #loginBox {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    #userInfo {
+      font-size: 0.9rem;
+      margin-bottom: 1rem;
+    }
+    #startBot {
+      display: inline-block;
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--primary);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Broadcast Telegram</h1>
+
+    <!-- Login Widget -->
+    <div id="loginBox">
+      <script
+        async
+        src="https://telegram.org/js/telegram-widget.js?22"
+        data-telegram-login="viatelev1"
+        data-size="large"
+        data-auth-url="https://bot-jasseb-via-web.vercel.app"
+        data-request-access="write"
+      ></script>
+      <div id="userInfo"></div>
+      <a id="startBot" href="https://t.me/viatelev1?start" target="_blank">🔍 Start Bot</a>
+    </div>
+
+    <!-- Form -->
+    <form id="broadcastForm" style="display:none;">
+      <label for="textInput">Teks yang akan dikirim</label>
+      <textarea id="textInput" placeholder="Ketik pesan di sini…" required></textarea>
+      <button type="submit" id="submitBtn">Kirim</button>
+      <div class="info">
+        Owner = ke semua user & grup. Premium = hanya grup.
+      </div>
+      <div id="alertBox" class="alert"></div>
+    </form>
+  </div>
+
+  <script>
+    const form = document.getElementById('broadcastForm');
+    const textInput = document.getElementById('textInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const alertBox = document.getElementById('alertBox');
+    const loginBox = document.getElementById('loginBox');
+    const userInfo = document.getElementById('userInfo');
+
+    let currentUser = null;
+
+    function showAlert(msg, type = 'success') {
+      alertBox.textContent = msg;
+      alertBox.className = 'alert ' + type;
+      alertBox.style.display = 'block';
+      setTimeout(() => (alertBox.style.display = 'none'), 5000);
+    }
+
+    // Cek auth saat load
+    window.addEventListener('load', () => {
+      const params = new URLSearchParams(window.location.search);
+      const userRaw = params.get('user');
+      if (userRaw) {
+        try {
+          currentUser = JSON.parse(decodeURIComponent(userRaw));
+          userInfo.innerText = `Halo, ${currentUser.first_name} (ID:${currentUser.id})`;
+          loginBox.style.display = 'none';
+          form.style.display = 'block';
+        } catch {}
+      }
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = textInput.value.trim();
+      if (!text || !currentUser) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Mengirim…';
+
+      try {
+        const res = await fetch('/api/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, user: currentUser })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          showAlert(`Sukses terkirim ke ${data.sent} target!`, 'success');
+          textInput.value = '';
+        } else {
+          showAlert(data.error || 'Gagal mengirim', 'error');
+        }
+      } catch (err) {
+        showAlert('Terjadi kesalahan jaringan', 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Kirim';
+      }
+    });
+  </script>
+</body>
+</html>
